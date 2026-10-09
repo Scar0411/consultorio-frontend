@@ -1,88 +1,178 @@
-import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
-import axios from 'axios';
+import { BrowserRouter, Routes, Route, useNavigate, Navigate } from 'react-router-dom';
+import './App.css';
 
-// Componente: Pantalla de Login
-function Login({ setToken }) {
+function MainApp() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [token, setToken] = useState('');
+  const [mensaje, setMensaje] = useState('');
+  const [datosPacientes, setDatosPacientes] = useState(null);
+  
   const navigate = useNavigate();
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    try {
-      // Petición al Backend en Node.js
-      const res = await axios.post('http://localhost:3000/api/auth/login', { username, password });
-      const jwt = res.data.token;
-      localStorage.setItem('token', jwt);
-      setToken(jwt);
-      navigate('/dashboard');
-    } catch (err) {
-      setError('Credenciales incorrectas');
+    const res = await fetch('http://localhost:3000/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password })
+    });
+    const data = await res.json();
+    
+    if (res.ok) {
+      setToken(data.token);
+      setMensaje('');
+      setUsername(''); // Limpiamos por seguridad al entrar
+      setPassword(''); // Limpiamos por seguridad al entrar
+      navigate('/dashboard'); 
+    } else {
+      setMensaje(data.mensaje);
+      // AQUÍ: Limpiamos los campos para que vuelva a intentarlo si se equivocó
+      setUsername('');
+      setPassword('');
     }
   };
 
-  return (
-    <div style={{ padding: '50px', maxWidth: '400px', margin: 'auto' }}>
-      <h2>Acceso al Consultorio</h2>
-      {error && <p style={{ color: 'red' }}>{error}</p>}
-      <form onSubmit={handleLogin}>
-        <div>
-          <label>Usuario:</label>
-          <input type="text" onChange={e => setUsername(e.target.value)} required />
-        </div>
-        <div style={{ marginTop: '10px' }}>
-          <label>Contraseña:</label>
-          <input type="password" onChange={e => setPassword(e.target.value)} required />
-        </div>
-        <button type="submit" style={{ marginTop: '20px' }}>Ingresar</button>
-      </form>
-    </div>
-  );
-}
-
-// Componente: Dashboard Protegido
-function Dashboard() {
-  const [data, setData] = useState('');
-  const [error, setError] = useState('');
-  const token = localStorage.getItem('token');
-
-  const fetchDashboardData = async () => {
+  const handleRegistro = async (e) => {
+    e.preventDefault();
     try {
-      const res = await axios.get('http://localhost:3000/api/dashboard', {
-        headers: { Authorization: `Bearer ${token}` }
+      const res = await fetch('http://localhost:3000/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
       });
-      setData(res.data.mensaje + " " + res.data.datos);
-    } catch (err) {
-      setError('Error al obtener datos seguros. Token inválido.');
+      const data = await res.json();
+      
+      if (res.ok) {
+        alert("✅ ¡ÉXITO! " + data.mensaje); 
+        setMensaje(data.mensaje);
+        
+        // AQUÍ: Limpiamos los campos para que no pasen a la pantalla de Login
+        setUsername('');
+        setPassword('');
+        
+        setTimeout(() => {
+          setMensaje('');
+          navigate('/login'); 
+        }, 2000);
+      } else {
+        alert("❌ ERROR: " + data.mensaje + (data.error ? " Detalles: " + data.error : ""));
+        setMensaje(data.mensaje);
+        // Borramos la contraseña si hubo un error en el registro (ej. usuario duplicado)
+        setPassword('');
+      }
+    } catch (error) {
+      alert("❌ Error crítico: El servidor Backend está apagado o no responde.");
     }
   };
 
+  const obtenerExpedientes = async () => {
+    const res = await fetch('http://localhost:3000/api/dashboard', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await res.json();
+    if (res.ok) {
+      setMensaje(data.mensaje);
+      setDatosPacientes(data.pacientes);
+    } else {
+      setMensaje(data.mensaje);
+      if (res.status === 401 || res.status === 403) cerrarSesion();
+    }
+  };
+
+  const cerrarSesion = () => {
+    setToken('');
+    setDatosPacientes(null);
+    setMensaje('');
+    setUsername('');
+    setPassword('');
+    navigate('/login'); // Expulsa al usuario al login
+  };
+
   return (
-    <div style={{ padding: '50px' }}>
-      <h2>Dashboard Médico (Seguro)</h2>
-      <button onClick={fetchDashboardData}>Obtener Expedientes</button>
-      {data && <p style={{ color: 'green', marginTop: '20px' }}>{data}</p>}
-      {error && <p style={{ color: 'red', marginTop: '20px' }}>{error}</p>}
+    <div className="app-container">
+      {/* Botón de cerrar sesión global en la esquina superior */}
+      {token && (
+        <button onClick={cerrarSesion} className="btn-logout">Cerrar Sesión</button>
+      )}
+
+      <Routes>
+        {/* Redirección por defecto */}
+        <Route path="/" element={<Navigate to="/login" />} />
+        
+        <Route path="/login" element={
+          <div className="card">
+            <div className="card-header">
+              <h2>Portal Médico</h2>
+              <p>Acceso Seguro</p>
+            </div>
+            <form onSubmit={handleLogin}>
+              <input type="text" placeholder="Usuario" value={username} onChange={(e) => setUsername(e.target.value)} required />
+              <input type="password" placeholder="Contraseña" value={password} onChange={(e) => setPassword(e.target.value)} required />
+              <button type="submit" className="btn-primary">Iniciar Sesión</button>
+            </form>
+            {mensaje && <p className="alert-error">{mensaje}</p>}
+            <p className="switch-text">¿No tienes cuenta? <span onClick={() => { setMensaje(''); navigate('/registro'); }} className="link">Regístrate aquí</span></p>
+          </div>
+        } />
+
+        <Route path="/registro" element={
+          <div className="card">
+            <div className="card-header">
+              <h2>Nuevo Registro</h2>
+              <p>Alta de personal médico</p>
+            </div>
+            <form onSubmit={handleRegistro}>
+              <input type="text" placeholder="Nuevo Usuario" value={username} onChange={(e) => setUsername(e.target.value)} required />
+              <input type="password" placeholder="Nueva Contraseña" value={password} onChange={(e) => setPassword(e.target.value)} required />
+              <button type="submit" className="btn-success">Registrar Médico</button>
+            </form>
+            {mensaje && <p className={mensaje.includes('exitosamente') ? "alert-success" : "alert-error"}>{mensaje}</p>}
+            <p className="switch-text">¿Ya tienes cuenta? <span onClick={() => { setMensaje(''); navigate('/login'); }} className="link">Vuelve al Login</span></p>
+          </div>
+        } />
+
+        <Route path="/dashboard" element={
+          token ? (
+            <div className="card dashboard-card">
+              <div className="card-header">
+                <h2>Dashboard Médico (Zero Trust)</h2>
+                <p>Bienvenido, {username}</p>
+              </div>
+              
+              <div className="dashboard-actions">
+                <button onClick={obtenerExpedientes} className="btn-primary">Obtener Expedientes Seguros</button>
+              </div>
+
+              {mensaje && <div className="alert-success-box">{mensaje}</div>}
+              
+              {datosPacientes && (
+                <div className="pacientes-lista">
+                  <h3>Expedientes de Hoy:</h3>
+                  <ul>
+                    {datosPacientes.map(paciente => (
+                      <li key={paciente.id}>
+                        <strong>{paciente.nombre}</strong> - {paciente.diagnostico}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          ) : (
+            <Navigate to="/login" />
+          )
+        } />
+      </Routes>
     </div>
   );
 }
 
-// Configuración de Rutas y Protección
 export default function App() {
-  const [token, setToken] = useState(localStorage.getItem('token'));
-
   return (
-    <Router>
-      <Routes>
-        <Route path="/login" element={<Login setToken={setToken} />} />
-        <Route 
-          path="/dashboard" 
-          element={token ? <Dashboard /> : <Navigate to="/login" />} 
-        />
-        <Route path="*" element={<Navigate to={token ? "/dashboard" : "/login"} />} />
-      </Routes>
-    </Router>
+    <BrowserRouter>
+      <MainApp />
+    </BrowserRouter>
   );
 }
