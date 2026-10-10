@@ -153,7 +153,7 @@ function MainApp() {
                   <ul>
                     {datosPacientes.map(paciente => (
                       <li key={paciente.id}>
-                        <strong>{paciente.nombre}</strong> - {paciente.diagnostico}
+                        <strong>{paciente.nombre}</strong> - {paciente.sintomas}
                       </li>
                     ))}
                   </ul>
