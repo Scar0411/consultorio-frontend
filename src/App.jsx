@@ -13,7 +13,7 @@ function MainApp() {
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    const res = await fetch('http://localhost:3000/api/auth/login', {
+    const res = await fetch('/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, password })
@@ -37,7 +37,7 @@ function MainApp() {
   const handleRegistro = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch('http://localhost:3000/api/auth/register', {
+      const res = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password })
@@ -68,7 +68,7 @@ function MainApp() {
   };
 
   const obtenerExpedientes = async () => {
-    const res = await fetch('http://localhost:3000/api/dashboard', {
+    const res = await fetch('/api/dashboard', {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     const data = await res.json();
